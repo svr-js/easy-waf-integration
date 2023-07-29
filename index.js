@@ -8,6 +8,24 @@ var url = require("url");
 var easywafconfig = {};
 var logm = {};
 if (fs.existsSync("easywaf-config.json")) easywafconfig = JSON.parse(fs.readFileSync("easywaf-config.json").toString())
+function createRegex(regex) {
+  var regexObj = regex.split("/");
+  if (regexObj.length == 0) throw new Error("Invalid regex!");
+  var modifiers = regexObj.pop();
+  regexObj.shift();
+  var searchString = regexObj.join("/");
+  return new RegExp(searchString, modifiers);
+}
+
+if(easywafconfig.modules) {
+  var moduleOptions = Object.keys(easywafconfig.modules);
+  for(var i=0;i<moduleOptions.length;i++) {
+    try {
+      if(easywafconfig.modules[moduleOptions[i]].excludePaths) easywafconfig.modules[moduleOptions[i]].excludePaths = createRegex(easywafconfig.modules[moduleOptions[i]].excludePaths);
+    } catch(ex) { }
+  }
+}
+
 easywafconfig.preBlockHook = function(req, moduleInfo, ip) {
   try {
     logm[ip]("Request blocked by EasyWAF. Module: " + moduleInfo.name);
@@ -56,3 +74,4 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
   }
 }
 module.exports = Mod;
+
