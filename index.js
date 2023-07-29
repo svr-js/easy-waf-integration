@@ -7,7 +7,7 @@ var os = require("os");
 var url = require("url");
 var easywafconfig = {};
 var logm = {};
-if (fs.existsSync("easywaf-config.json")) easywafconfig = JSON.parse(fs.readFileSync("easywaf-config.json").toString())
+if (fs.existsSync(__dirname + "/../../../easywaf-config.json")) easywafconfig = JSON.parse(fs.readFileSync(__dirname + "/../../../easywaf-config.json").toString())
 function createRegex(regex) {
   var regexObj = regex.split("/");
   if (regexObj.length == 0) throw new Error("Invalid regex!");
@@ -44,15 +44,17 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
     //REQ.BODY
     function readableHandler() {
       try {
-        req.body = req._readableState.buffer._getString();
-        if (req.headers["content-type"] == "application/x-www-form-urlencoded") req.body = url.parse("?" + req.body.strip(), true).query;
-        if (req.headers["content-type"] == "application/json") req.body = JSON.parse(req.body.strip());
+        if(req._readableState.buffer.head !== null) {
+          req.body = req._readableState.buffer.head.data.toString("latin1");
+          if (req.headers["content-type"] == "application/x-www-form-urlencoded") req.body = url.parse("?" + req.body.strip(), true).query;
+          if (req.headers["content-type"] == "application/json") req.body = JSON.parse(req.body.strip());
+        }
       } catch (ex) {
       }
-      
+
       //EASYWAF
       easyWaf(req, res, function() {
-        if (href == "/easywaf-config.json" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-config.json")) {
+        if ((href == "/easywaf-config.json" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-config.json")) && __dirname == process.cwd()) {
           if (callServerError) {
             callServerError(403, "easy-waf-integration/1.0.0");
           } else {
