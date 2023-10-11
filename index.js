@@ -1,12 +1,12 @@
 var EasyWaf = require('easy-waf');
 if(EasyWaf.default) {
-  EasyWaf = EasyWaf.default;    
+  EasyWaf = EasyWaf.default;
 }
 var nodemailer = undefined;
 try {
   var nodemailer = require('nodemailer');
 } catch(ex) {
-    
+
 }
 var fs = require("fs");
 var os = require("os");
@@ -56,7 +56,7 @@ easywafconfig.preBlockHook = function(req, moduleInfo, ip) {
     try {
       logm[ip].errmessage("Request blocked by EasyWAF. Module: " + moduleInfo.name);
     } catch (ex) {
-  
+
     }
   }
   return returnvalue;
@@ -101,7 +101,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
   return function() {
     logm[req.socket.remoteAddress] = serverconsole;
     if(!logm[req.socket.remoteAddress].locwarnmessage) logm[req.socket.remoteAddress].locwarnmessage = logm[req.socket.remoteAddress].errmessage;
-    
+
     //REQ.BODY
     function readableHandler() {
       try {
@@ -117,15 +117,28 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
       easyWaf(req, res, function() {
         if (((href == "/easywaf-config.json" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-config.json")) || (href == "/easywaf-hooks.js" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-hooks.js"))) && __dirname == process.cwd()) {
           if (callServerError) {
-            callServerError(403, "easy-waf-integration/1.2.0");
+            callServerError(403, "easy-waf-integration/1.2.1");
           } else {
             res.writeHead(403, "Forbidden", {
-              "Server": "SVR.JS"
+              "Server": "SVR.JS",
+              "Content-Type": "text/plain"
             });
             res.end("403 Forbidden!");
           }
         } else {
-          elseCallback();
+          try {
+            elseCallback();
+          } catch (ex) {
+            if (callServerError) {
+              callServerError(500, "easy-waf-integration/1.2.1", ex);
+            } else {
+              res.writeHead(500, "Internal Server Error", {
+                "Server": "SVR.JS",
+                "Content-Type": "text/plain"
+              });
+              res.end(ex.stack);
+            }
+          }
         }
       });
     }
