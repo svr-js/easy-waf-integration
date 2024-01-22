@@ -102,7 +102,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
     logm[req.socket.remoteAddress] = serverconsole;
     if(!logm[req.socket.remoteAddress].locwarnmessage) logm[req.socket.remoteAddress].locwarnmessage = logm[req.socket.remoteAddress].errmessage;
 
-    //REQ.BODY
+    //req.body
     function readableHandler() {
       try {
         if(req._readableState.buffer.head !== null) {
@@ -113,34 +113,46 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
       } catch (ex) {
       }
 
-      //EASYWAF
-      easyWaf(req, res, function() {
-        if (((href == "/easywaf-config.json" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-config.json")) || (href == "/easywaf-hooks.js" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-hooks.js"))) && __dirname == process.cwd()) {
-          if (callServerError) {
-            callServerError(403, "easy-waf-integration/1.2.1");
-          } else {
-            res.writeHead(403, "Forbidden", {
-              "Server": "SVR.JS",
-              "Content-Type": "text/plain"
-            });
-            res.end("403 Forbidden!");
-          }
-        } else {
-          try {
-            elseCallback();
-          } catch (ex) {
+      //EasyWaf
+      try {
+        easyWaf(req, res, function() {
+          if (((href == "/easywaf-config.json" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-config.json")) || (href == "/easywaf-hooks.js" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-hooks.js"))) && __dirname == process.cwd()) {
             if (callServerError) {
-              callServerError(500, "easy-waf-integration/1.2.1", ex);
+              callServerError(403, "easy-waf-integration/1.2.2");
             } else {
-              res.writeHead(500, "Internal Server Error", {
+              res.writeHead(403, "Forbidden", {
                 "Server": "SVR.JS",
                 "Content-Type": "text/plain"
               });
-              res.end(ex.stack);
+              res.end("403 Forbidden!");
+            }
+          } else {
+            try {
+              elseCallback();
+            } catch (ex) {
+              if (callServerError) {
+                callServerError(500, "easy-waf-integration/1.2.2", ex);
+              } else {
+                res.writeHead(500, "Internal Server Error", {
+                  "Server": "SVR.JS",
+                  "Content-Type": "text/plain"
+                });
+                res.end(ex.stack);
+              }
             }
           }
+        });
+      } catch(ex) {
+        if (callServerError) {
+          callServerError(500, "easy-waf-integration/1.2.2", ex);
+        } else {
+          res.writeHead(500, "Internal Server Error", {
+            "Server": "SVR.JS",
+            "Content-Type": "text/plain"
+          });
+          res.end(ex.stack);
         }
-      });
+      }
     }
     if(req._readableState.length > 0 || req._readableState.ended) {
       readableHandler();
