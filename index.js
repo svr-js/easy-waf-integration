@@ -16,6 +16,14 @@ var easywafhooks = {};
 var logm = {};
 if (fs.existsSync(__dirname + "/../../../easywaf-config.json")) easywafconfig = JSON.parse(fs.readFileSync(__dirname + "/../../../easywaf-config.json").toString());
 if (fs.existsSync(__dirname + "/../../../easywaf-hooks.js")) easywafhooks = require(__dirname + "/../../../easywaf-hooks.js");
+
+var version = "UNKNOWN";
+try {
+ version = JSON.parse(fs.readFileSync(__dirname + "/mod.info")).version;
+} catch (ex) {
+ // Can't determine version
+}
+
 function createRegex(regex) {
   var regexObj = regex.split("/");
   if (regexObj.length == 0) throw new Error("Invalid regex!");
@@ -81,8 +89,8 @@ easywafconfig.postBlockHook = function(req, moduleInfo, ip) {
       from: fromAddress,
       to: easywafconfig.mailConfig.to,
       subject: "Request blocked by EasyWAF from " + ip + " - Urgent Attention Required",
-      text: "Dear Webmaster,\n\nI hope this email finds you well. I am writing to inform you that a request has been blocked by our Web Application Firewall (WAF) and it requires your immediate attention.\n\nThe WAF module that flagged this request is \"" + moduleInfo.name + "\". We have received an automated message from the WAF system indicating that a request to " + req.url + " from the following IP address " + ip + " has been blocked due to security concerns.\n\nTo ensure the smooth functioning of our website and prevent any potential threats, it is crucial that you investigate this issue promptly. Please review the logs to gather more information about the specific request that triggered the block.\n\nOnce you have identified the reason for the block, please take the necessary steps to either whitelist the IP address or address any potential security vulnerabilities that may have caused the block. This will ensure that legitimate users can access our website without any interruptions.\n\nIf you require any assistance or further information regarding this issue, please do not hesitate to contact either EasyWAF support at info[at]timokoessler[dot]de or SVR.JS support at support[at]svrjs[dot]org. We are here to help you resolve any concerns related to the WAF.\n\nThank you for your immediate attention to this matter. We appreciate your efforts in maintaining the security and integrity of our website.",
-      html: ("Dear Webmaster,\n\nI hope this email finds you well. I am writing to inform you that a request has been blocked by our Web Application Firewall (WAF) and it requires your immediate attention.\n\nThe WAF module that flagged this request is \"" + moduleInfo.name + "\". We have received an automated message from the WAF system indicating that a request to " + req.url + " from the following IP address " + ip + " has been blocked due to security concerns.\n\nTo ensure the smooth functioning of our website and prevent any potential threats, it is crucial that you investigate this issue promptly. Please review the logs to gather more information about the specific request that triggered the block.\n\nOnce you have identified the reason for the block, please take the necessary steps to either whitelist the IP address or address any potential security vulnerabilities that may have caused the block. This will ensure that legitimate users can access our website without any interruptions.\n\nIf you require any assistance or further information regarding this issue, please do not hesitate to contact either EasyWAF support at info[at]timokoessler[dot]de or SVR.JS support at support[at]svrjs[dot]org. We are here to help you resolve any concerns related to the WAF.\n\nThank you for your immediate attention to this matter. We appreciate your efforts in maintaining the security and integrity of our website.").replace(/&/g,"&amp;").replace(/\</g,"&lt;").replace(/\>/g,"&gt;").replace(/[\r\n]/g,"<br/>")
+      text: "Dear Webmaster,\n\nI hope this email finds you well. I am writing to inform you that a request has been blocked by our Web Application Firewall (WAF) and it requires your immediate attention.\n\nThe WAF module that flagged this request is \"" + moduleInfo.name + "\". We have received an automated message from the WAF system indicating that a request to " + ((req.socket && ((req.headers && req.headers.host) || req.socket.localAddress)) ? ((req.socket.encrypted ? "https://" : "http://") + ((req.headers && req.headers.host) ? req.headers.host : req.socket.localAddress)) : "" ) + req.url + " from the following IP address " + ip + " has been blocked due to security concerns.\n\nTo ensure the smooth functioning of our website and prevent any potential threats, it is crucial that you investigate this issue promptly. Please review the logs to gather more information about the specific request that triggered the block.\n\nOnce you have identified the reason for the block, please take the necessary steps to either whitelist the IP address or address any potential security vulnerabilities that may have caused the block. This will ensure that legitimate users can access our website without any interruptions.\n\nIf you require any assistance or further information regarding this issue, please do not hesitate to contact either EasyWAF support at info[at]timokoessler[dot]de or SVR.JS support at support[at]svrjs[dot]org. We are here to help you resolve any concerns related to the WAF.\n\nThank you for your immediate attention to this matter. We appreciate your efforts in maintaining the security and integrity of our website.",
+      html: ("Dear Webmaster,\n\nI hope this email finds you well. I am writing to inform you that a request has been blocked by our Web Application Firewall (WAF) and it requires your immediate attention.\n\nThe WAF module that flagged this request is \"" + moduleInfo.name + "\". We have received an automated message from the WAF system indicating that a request to " + ((req.socket && ((req.headers && req.headers.host) || req.socket.localAddress)) ? ((req.socket.encrypted ? "https://" : "http://") + ((req.headers && req.headers.host) ? req.headers.host : req.socket.localAddress)) : "" ) + req.url + " from the following IP address " + ip + " has been blocked due to security concerns.\n\nTo ensure the smooth functioning of our website and prevent any potential threats, it is crucial that you investigate this issue promptly. Please review the logs to gather more information about the specific request that triggered the block.\n\nOnce you have identified the reason for the block, please take the necessary steps to either whitelist the IP address or address any potential security vulnerabilities that may have caused the block. This will ensure that legitimate users can access our website without any interruptions.\n\nIf you require any assistance or further information regarding this issue, please do not hesitate to contact either EasyWAF support at info[at]timokoessler[dot]de or SVR.JS support at support[at]svrjs[dot]org. We are here to help you resolve any concerns related to the WAF.\n\nThank you for your immediate attention to this matter. We appreciate your efforts in maintaining the security and integrity of our website.").replace(/&/g,"&amp;").replace(/\</g,"&lt;").replace(/\>/g,"&gt;").replace(/[\r\n]/g,"<br/>")
     }).catch(function (ex) {
       logm[ip].locwarnmessage("There was a problem when sending e-mail!");
       logm[ip].locwarnmessage("Stack:");
@@ -118,7 +126,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
         easyWaf(req, res, function() {
           if (((href == "/easywaf-config.json" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-config.json")) || (href == "/easywaf-hooks.js" || (os.platform() == "win32" && href.toLowerCase() == "/easywaf-hooks.js"))) && __dirname == process.cwd()) {
             if (callServerError) {
-              callServerError(403, "easy-waf-integration/1.2.2");
+              callServerError(403, "easy-waf-integration/" + version);
             } else {
               res.writeHead(403, "Forbidden", {
                 "Server": "SVR.JS",
@@ -131,7 +139,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
               elseCallback();
             } catch (ex) {
               if (callServerError) {
-                callServerError(500, "easy-waf-integration/1.2.2", ex);
+                callServerError(500, "easy-waf-integration/" + version, ex);
               } else {
                 res.writeHead(500, "Internal Server Error", {
                   "Server": "SVR.JS",
@@ -144,7 +152,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
         });
       } catch(ex) {
         if (callServerError) {
-          callServerError(500, "easy-waf-integration/1.2.2", ex);
+          callServerError(500, "easy-waf-integration/" + version, ex);
         } else {
           res.writeHead(500, "Internal Server Error", {
             "Server": "SVR.JS",
