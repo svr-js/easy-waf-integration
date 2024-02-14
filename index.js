@@ -231,7 +231,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
           res.end("413 Content Too Large!");
         }
       }
-      req.once("readable", readableHandlerWhole);
+      req.on("readable", readableHandlerWhole);
     } else if(req._readableState.length > 0 || req._readableState.ended) {
       readableHandlerPredict();
     } else {
