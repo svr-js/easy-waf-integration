@@ -112,6 +112,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
   return function() {
     logm[req.socket.remoteAddress] = serverconsole;
     if(!logm[req.socket.remoteAddress].locwarnmessage) logm[req.socket.remoteAddress].locwarnmessage = logm[req.socket.remoteAddress].errmessage;
+    var oldReqBody = req.body;
 
     function easyWafCallback() {
       //EasyWaf
@@ -129,6 +130,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
             }
           } else {
             try {
+              req.body = oldReqBody;
               elseCallback();
             } catch (ex) {
               if (callServerError) {
