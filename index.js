@@ -170,7 +170,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
     }
 
     var chunkBuffer = [];
-    var chunkBufferLength = Math.min(parseInt(req.headers["content-length"]) - 1, maxRequestCheckSize);
+    var chunkBufferLength = Math.min(parseInt(req.headers["content-length"]) - 1, maxRequestCheckedSize);
     var chunkBufferPointer = 0;
 
     function readableHandlerWhole() {
