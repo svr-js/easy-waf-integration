@@ -48,6 +48,9 @@ if(nodemailer && easywafconfig.mailConfig && easywafconfig.mailConfig.serverConf
   mailtransport = nodemailer.createTransport(easywafconfig.mailConfig.serverConfig);
 }
 
+var maxRequestCheckedSize = easywafconfig.maxRequestCheckedSize ? easywafconfig.maxRequestCheckedSize : 65536;
+var maxRequestCheckedSizeStrict = easywafconfig.maxRequestCheckedSizeStrict ? easywafconfig.maxRequestCheckedSizeStrict : false;
+
 easywafconfig.preBlockHook = function(req, moduleInfo, ip) {
   var returnvalue = true;
   if(easywafhooks.preBlockHook) {
@@ -110,17 +113,7 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
     logm[req.socket.remoteAddress] = serverconsole;
     if(!logm[req.socket.remoteAddress].locwarnmessage) logm[req.socket.remoteAddress].locwarnmessage = logm[req.socket.remoteAddress].errmessage;
 
-    //req.body
-    function readableHandler() {
-      try {
-        if(req._readableState.buffer.head !== null) {
-          req.body = req._readableState.buffer.head.data.toString("latin1");
-          if (req.headers["content-type"] == "application/x-www-form-urlencoded") req.body = url.parse("?" + req.body.strip(), true).query;
-          if (req.headers["content-type"] == "application/json") req.body = JSON.parse(req.body.strip());
-        }
-      } catch (ex) {
-      }
-
+    function easyWafCallback() {
       //EasyWaf
       try {
         easyWaf(req, res, function() {
@@ -162,10 +155,85 @@ Mod.prototype.callback = function callback(req, res, serverconsole, responseEnd,
         }
       }
     }
-    if(req._readableState.length > 0 || req._readableState.ended) {
-      readableHandler();
+
+    //req.body
+    function readableHandlerPredict() {
+      try {
+        if(req._readableState.buffer.head !== null) {
+          req.body = req._readableState.buffer.head.data.toString("latin1");
+          if (req.headers["content-type"] == "application/x-www-form-urlencoded") req.body = url.parse("?" + req.body.strip(), true).query;
+          if (req.headers["content-type"] == "application/json") req.body = JSON.parse(req.body.strip());
+        }
+      } catch (ex) {
+      }
+      easyWafCallback();
+    }
+
+    var chunkBuffer = [];
+    var chunkBufferLength = Math.min(parseInt(req.headers["content-length"]) - 1, maxRequestCheckSize);
+    var chunkBufferPointer = 0;
+
+    function readableHandlerWhole() {
+      var chunk = req.read(chunkBufferLength - chunkBufferPointer);
+      if(!chunk) chunk = req.read();
+      if(chunk) {
+        chunkBuffer.push(chunk);
+        chunkBufferPointer += chunk.length;
+      }
+      if(req._readableState.ended) {
+        req.removeListener("readable", readableHandlerWhole);
+        if (callServerError) {
+          callServerError(400, "easy-waf-integration/" + version);
+        } else {
+          res.writeHead(400, "Bad Request", {
+            "Server": "SVR.JS",
+            "Content-Type": "text/plain"
+          });
+          res.end("400 Bad Request!");
+        }
+      } else if(chunkBufferPointer >= chunkBufferLength) {
+        req.removeListener("readable", readableHandlerWhole);
+        try {
+          for(var i = chunkBuffer.length - 1; i >= 0; i--) {
+            req.unshift(chunkBuffer[i]);
+          }
+        } catch (ex) {
+          if (callServerError) {
+            callServerError(500, "easy-waf-integration/" + version, ex);
+          } else {
+            res.writeHead(500, "Internal Server Error", {
+              "Server": "SVR.JS",
+              "Content-Type": "text/plain"
+            });
+            res.end(ex.stack);
+          }
+          return;
+        }
+        req.body = "";
+        for(var i = 0; i < chunkBuffer.length; i++) {
+          req.body += chunkBuffer[i].toString("latin1");
+        }
+        easyWafCallback();
+      }
+    }
+
+    if(!req._readableState.ended && !isNaN(chunkBufferLength) && chunkBufferLength > 0) {
+      if(maxRequestCheckedSizeStrict && parseInt(req.headers["content-length"]) > maxRequestCheckSize) {
+        if (callServerError) {
+          callServerError(413, "easy-waf-integration/" + version);
+        } else {
+          res.writeHead(413, "Content Too Large", {
+            "Server": "SVR.JS",
+            "Content-Type": "text/plain"
+          });
+          res.end("413 Content Too Large!");
+        }
+      }
+      req.once("readable", readableHandlerWhole);
+    } else if(req._readableState.length > 0 || req._readableState.ended) {
+      readableHandlerPredict();
     } else {
-      req.once("readable", readableHandler);
+      req.once("readable", readableHandlerPredict);
     }
   }
 }
